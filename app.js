@@ -17,7 +17,7 @@ app.use("/api/auth/",authRouter)
 
 app.use('/', (req, res) => {
     res.status(201).json({
-        Data:"JWT auth server -updated"
+        Data:"JWT dauth server -updated"
     })
 })
 
