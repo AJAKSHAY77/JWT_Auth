@@ -1,5 +1,6 @@
 const userModel = require("../Model/userSchema");
 const emailvalidator = require("email-validator");
+const bycrypt = require("bcrypt")
 
 const signup = async (req, res, next) => {
   const { name, email, password, confirm_password } = req.body;
@@ -58,57 +59,81 @@ const signin = async (req, res) => {
   }
 
   try {
-  const user = await userModel
-    .findOne({
-      email,
-    })
-    .select(`+password`);
+    const user = await userModel
+      .findOne({
+        email,
+      })
+      .select(`+password`);
 
-  if (!user || user.password !== password) {
-    return res.status(400).json({
+    if (!user ||  !(await bycrypt.compare(password, user.password))) {
+      return res.status(400).json({
+        success: false,
+        message: "invalid crendentails",
+      });
+    }
+
+    const token = user.jwtToken();
+    user.password = undefined;
+
+    const cookieOption = {
+      maxAge: 24 * 60 * 60 * 1000,
+      httpOnly: true,
+    };
+
+    res.cookie("token", token, cookieOption);
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    res.status(400).json({
       success: false,
-      message: "invalid crendentails",
+      message: error.message,
     });
   }
-
-  const token = user.jwtToken();
-  user.password = undefined;
-
-  const cookieOption = {
-    maxAge: 24 * 60 * 60 * 1000,
-    httpOnly: true,
-  };
-
-  res.cookie("token", token, cookieOption);
-  res.status(200).json({
-    success: true,
-    data: user,
-  });
-
-
-  
-} catch (error) {
-  res.status(400).json({
-    success: false,
-    message:error.message
-  });
-}
-
-  
-  
-
-
-
-    
 };
 
+const getUserInormation = async (req, res, next) => {
+  const userid = req.user.id;
 
-const getUserInormation = (req,res) => {
-    
-}
+  try {
+    const user = await userModel.findById(userid);
+    console.log(user);
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const logout = (req, res) => {
+  try {
+    const cookieOption = {
+      expires: new Date(),
+      httpOnly: true,
+    };
+
+    res.cookie("token", null, cookieOption);
+    res.status(200).json({
+      succes: true,
+      message :"logged out"
+    })
+  } catch (error) {
+     return res.status(400).json({
+       success: false,
+       message: error.message,
+     });
+  }
+};
 
 module.exports = {
   signup,
   signin,
   getUserInormation,
+  logout,
 };
